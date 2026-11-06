@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>HelloWorldSandbox</AssemblyName>
+    <RootNamespace>HelloWorldSandbox</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" Version="2.71.0" />
+    <PackageReference Include="Grpc.AspNetCore.HealthChecks" Version="2.71.0" />
+    <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.0.0-preview.260108.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Vendored from kagent v1.0.0-alpha14 (proto/a2a.proto, proto/kagent/runtime/v1/task_store.proto)
+         with google.api / buf.validate annotations removed; the wire format is unchanged. -->
+    <Protobuf Include="Protos\a2a.proto" GrpcServices="Server" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\task_store.proto" GrpcServices="Client" ProtoRoot="Protos" />
+  </ItemGroup>
+
+</Project>
