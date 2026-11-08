@@ -5,9 +5,10 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.AI;
 using OpenAI;
 
-// kagent (v1.0 sandbox Harness, spec.byo) compiles the Agent/AgentTemplate/ModelConfig into
-// KAGENT_CONFIG_JSON; there are no AZURE_* or KAGENT_URL variables in the sandbox.
-var config = RuntimeConfig.FromEnvironment();
+// kagent (v1.0 sandbox Harness, spec.byo) compiles the Agent/AgentTemplate/ModelConfig into a
+// bootstrap bundle; there are no AZURE_* or KAGENT_URL variables in the sandbox. Load it before
+// the listeners bind so the golden snapshot only becomes ready with its configuration saved.
+var config = RuntimeConfig.FromBundle(await BootstrapLoader.LoadAsync());
 
 // The sandbox only holds a placeholder key. kagent's egress gateway swaps in the ModelConfig's
 // real key, and only for the provider host the egress policy allows (api.openai.com unless

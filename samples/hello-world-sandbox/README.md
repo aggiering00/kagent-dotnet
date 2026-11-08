@@ -11,14 +11,26 @@ the one `KAgent.Core` / `KAgent.MAF` implement:
 
 | | `samples/hello-world` (legacy) | This sample (kagent v1.0 sandbox) |
 |---|---|---|
-| Configuration | `AZURE_*`, `KAGENT_URL`, `KAGENT_NAME`, `KAGENT_NAMESPACE` | `KAGENT_CONFIG_JSON` (compiled `ADKConfig`), `KAGENT_AGENT_CARD_JSON` |
+| Configuration | `AZURE_*`, `KAGENT_URL`, `KAGENT_NAME`, `KAGENT_NAMESPACE` | Bootstrap bundle (compiled `ADKConfig` + agent card) fetched via `kagent.runtime.v1.BootstrapService` using the `KAGENT_BOOTSTRAP_JSON` descriptor, saved to `/data/kagent/bootstrap` |
 | Model access | Azure OpenAI with a real key | OpenAI client; kagent's egress gateway injects the ModelConfig's key |
 | A2A | HTTP JSON-RPC on `:8080` | `lf.a2a.v1.A2AService` gRPC (h2c) on `runtime.port` (`:80`) |
 | Readiness | `GET /health` | `GET /readyz` on `:8081` |
-| Task persistence | Controller REST `/api/tasks`, `/api/sessions` | `kagent.runtime.v1.TaskStoreService` gRPC at `runtime.control_plane_url` |
+| Task persistence | Controller REST `/api/tasks`, `/api/sessions` | `kagent.runtime.v1.TaskStoreService` gRPC at `runtime.control_plane_url`, authenticated by the actor JWT Substrate injects |
+
+Requires kagent `v1.0.0-rc3` or later, which removed the `KAGENT_CONFIG_JSON` /
+`KAGENT_AGENT_CARD_JSON` environment variables.
 
 `Protos/` holds `a2a.proto` and `task_store.proto` from kagent `v1.0.0-alpha14`, with only their
-`google.api` / `buf.validate` annotations removed so stock `Grpc.Tools` can compile them.
+`google.api` / `buf.validate` annotations removed so stock `Grpc.Tools` can compile them (their
+wire format is unchanged through `v1.0.0-rc3`), and `bootstrap.proto` from `v1.0.0-rc3` unchanged.
+
+## Startup
+
+1. Read the `KAGENT_BOOTSTRAP_JSON` descriptor (control-plane URL, revision, SHA-256).
+2. Use `/data/kagent/bootstrap/bundle.pb` if present (sessions, forks and restores), otherwise
+   fetch it from `BootstrapService` within 20 s, retrying while the actor's identity binds.
+3. Verify the bundle's revision and digest against the descriptor, save it atomically, then bind
+   the A2A and readiness listeners.
 
 ## Behaviour
 
@@ -38,8 +50,8 @@ Build for the worker pool's architecture (`linux/amd64` for most clusters; Apple
 `arm64` by default):
 
 ```sh
-docker buildx build . --platform linux/amd64 -f samples/hello-world-sandbox/Dockerfile -t <you>/hello-world-sandbox-agent:latest --push
-docker buildx imagetools inspect <you>/hello-world-sandbox-agent:latest   # copy the sha256 digest
+docker buildx build . --platform linux/amd64 -f samples/hello-world-sandbox/Dockerfile -t <you>/hello-world-sandbox-agent:rc3 --push
+docker buildx imagetools inspect <you>/hello-world-sandbox-agent:rc3   # copy the sha256 digest
 ```
 
 ## Deploy

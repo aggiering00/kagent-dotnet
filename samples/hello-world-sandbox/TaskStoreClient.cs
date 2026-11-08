@@ -16,8 +16,10 @@ namespace HelloWorldSandbox;
 public sealed class TaskStoreClient
 {
     private const string IdentityDirectory = "/run/kagent/identity";
-    // Temporary identity transport until Substrate injects actor credentials (kagent #1660).
-    private const string RuntimeIdentityHeader = "x-kagent-insecure-runtime-identity";
+    // Substrate's egress replaces this placeholder with the calling actor's JWT, including after a
+    // restore or fork, so no credential is kept in the snapshot. kagent v1.0.0-rc2+ rejects the
+    // former x-kagent-insecure-runtime-identity header.
+    private static readonly Metadata AuthorizationHeaders = new() { { "authorization", "Bearer placeholder" } };
     private static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(30);
     private const int MaxMessageBytes = 16 << 20;
 
@@ -94,9 +96,8 @@ public sealed class TaskStoreClient
     {
         for (var attempt = 0; ; attempt++)
         {
-            // Reread on every call because restore rebinds the identity files to the new actor.
             var options = new CallOptions(
-                headers: new Metadata { { RuntimeIdentityHeader, await RuntimeIdentityAsync(ct) } },
+                headers: AuthorizationHeaders,
                 deadline: DateTime.UtcNow.Add(CallTimeout),
                 cancellationToken: ct);
             try
@@ -110,6 +111,7 @@ public sealed class TaskStoreClient
         }
     }
 
+    // Reread on every call because restore rebinds the identity files to the new actor.
     private static async Task<string> SessionIdAsync(CancellationToken ct)
     {
         var name = (await File.ReadAllTextAsync(Path.Combine(IdentityDirectory, "name"), ct)).Trim();
@@ -118,15 +120,5 @@ public sealed class TaskStoreClient
             throw new InvalidOperationException($"unexpected runtime actor name '{name}'");
         }
         return id.ToString();
-    }
-
-    private static async Task<string> RuntimeIdentityAsync(CancellationToken ct)
-    {
-        var parts = new List<string>();
-        foreach (var field in new[] { "atespace", "name", "uid" })
-        {
-            parts.Add((await File.ReadAllTextAsync(Path.Combine(IdentityDirectory, field), ct)).Trim());
-        }
-        return string.Join('/', parts);
     }
 }

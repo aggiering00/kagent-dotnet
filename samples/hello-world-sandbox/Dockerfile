@@ -1,5 +1,5 @@
 # Build from the repository root:
-#   docker buildx build . --platform linux/amd64 -f samples/hello-world-sandbox/Dockerfile -t <you>/hello-world-sandbox-agent:latest --push
+#   docker buildx build . --platform linux/amd64 -f samples/hello-world-sandbox/Dockerfile -t <you>/hello-world-sandbox-agent:rc3 --push
 
 # Build stage
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build

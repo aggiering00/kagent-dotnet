@@ -20,6 +20,8 @@
          with google.api / buf.validate annotations removed; the wire format is unchanged. -->
     <Protobuf Include="Protos\a2a.proto" GrpcServices="Server" ProtoRoot="Protos" />
     <Protobuf Include="Protos\task_store.proto" GrpcServices="Client" ProtoRoot="Protos" />
+    <!-- Vendored unchanged from kagent v1.0.0-rc3 (proto/kagent/runtime/v1/bootstrap.proto). -->
+    <Protobuf Include="Protos\bootstrap.proto" GrpcServices="Client" ProtoRoot="Protos" />
   </ItemGroup>
 
 </Project>

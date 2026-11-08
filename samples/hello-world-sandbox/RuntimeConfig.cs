@@ -1,13 +1,15 @@
 using System.Text.Json;
 using Google.Protobuf;
+using Kagent.Runtime.V1;
 using Lf.A2a.V1;
 
 namespace HelloWorldSandbox;
 
 /// <summary>
 /// The subset of kagent's sandbox runtime contract this agent consumes.
-/// kagent passes the compiled ADKConfig (ProtoJSON) in KAGENT_CONFIG_JSON and the
-/// agent card in KAGENT_AGENT_CARD_JSON; it does not set the legacy KAGENT_URL/NAME/NAMESPACE.
+/// kagent delivers the compiled ADKConfig (ProtoJSON) and the agent card in the revision's
+/// bootstrap bundle (see <see cref="BootstrapLoader"/>); it does not set the legacy
+/// KAGENT_URL/NAME/NAMESPACE.
 /// </summary>
 public sealed record RuntimeConfig(
     string ControlPlaneUrl,
@@ -21,16 +23,14 @@ public sealed record RuntimeConfig(
     // Fixed by the sandbox: Substrate probes readiness here before snapshotting the golden actor.
     public const int ReadinessPort = 8081;
 
-    public static RuntimeConfig FromEnvironment()
+    public static RuntimeConfig FromBundle(BootstrapBundle bundle)
     {
-        var configJson = Environment.GetEnvironmentVariable("KAGENT_CONFIG_JSON")
-            ?? throw new InvalidOperationException("KAGENT_CONFIG_JSON is not set; this image must run in a kagent sandbox Harness.");
-        using var config = JsonDocument.Parse(configJson);
+        using var config = JsonDocument.Parse(bundle.ConfigJson.Memory);
         var root = config.RootElement;
 
         var runtime = root.GetProperty("runtime");
         var controlPlaneUrl = GetString(runtime, "control_plane_url", "controlPlaneUrl")
-            ?? throw new InvalidOperationException("runtime.control_plane_url is missing from KAGENT_CONFIG_JSON.");
+            ?? throw new InvalidOperationException("runtime.control_plane_url is missing from the bootstrap config.");
         var port = 80;
         if (TryGetProperty(runtime, out var portElement, "port"))
         {
@@ -53,7 +53,7 @@ public sealed record RuntimeConfig(
             }
         }
 
-        var cardJson = Environment.GetEnvironmentVariable("KAGENT_AGENT_CARD_JSON");
+        var cardJson = bundle.AgentCardJson.ToStringUtf8();
         var card = string.IsNullOrEmpty(cardJson)
             ? new AgentCard()
             : new JsonParser(JsonParser.Settings.Default.WithIgnoreUnknownFields(true)).Parse<AgentCard>(cardJson);
@@ -63,7 +63,7 @@ public sealed record RuntimeConfig(
             A2APort: port,
             AgentName: GetString(runtime, "name") ?? card.Name,
             Model: string.IsNullOrEmpty(model)
-                ? throw new InvalidOperationException("agent.model.model is missing from KAGENT_CONFIG_JSON; set a ModelConfig on the AgentTemplate.")
+                ? throw new InvalidOperationException("agent.model.model is missing from the bootstrap config; set a ModelConfig on the AgentTemplate.")
                 : model,
             OpenAIBaseUrl: string.IsNullOrEmpty(baseUrl) ? null : baseUrl,
             Instruction: string.IsNullOrEmpty(instruction) ? null : instruction,
